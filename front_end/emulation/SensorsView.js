@@ -583,7 +583,7 @@ export class SensorsView extends UI.Widget.VBox {
     this._boxMatrix = matrix.rotate(-deviceOrientation.beta, deviceOrientation.gamma, -deviceOrientation.alpha);
     const eulerAngles =
         new UI.Geometry.EulerAngles(deviceOrientation.alpha, deviceOrientation.beta, deviceOrientation.gamma);
-    this._orientationLayer.style.transform = eulerAngles.toRotate3DString();
+    this._orientationLayer.style.transform = eulerAngles.toCSSRotationString();
   }
 
   /**
@@ -707,8 +707,8 @@ export const PresetOrientations = [{
   value: [
     {title: Common.UIString.UIString('Portrait'), orientation: '[0, 90, 0]'},
     {title: Common.UIString.UIString('Portrait upside down'), orientation: '[180, -90, 0]'},
-    {title: Common.UIString.UIString('Landscape left'), orientation: '[0, 90, -90]'},
-    {title: Common.UIString.UIString('Landscape right'), orientation: '[0, 90, 90]'},
+    {title: Common.UIString.UIString('Landscape left'), orientation: '[90, 0, -90]'},
+    {title: Common.UIString.UIString('Landscape right'), orientation: '[-90, 0, 90]'},
     {title: Common.UIString.UIString('Display up'), orientation: '[0, 0, 0]'},
     {title: Common.UIString.UIString('Display down'), orientation: '[0, 180, 0]'}
   ]

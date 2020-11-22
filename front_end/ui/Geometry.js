@@ -216,13 +216,21 @@ export class EulerAngles {
   /**
    * @return {string}
    */
-  toRotate3DString() {
-    const gammaAxisY = -Math.sin(degreesToRadians(this.beta));
-    const gammaAxisZ = Math.cos(degreesToRadians(this.beta));
-    const axis = {alpha: [0, 1, 0], beta: [-1, 0, 0], gamma: [0, gammaAxisY, gammaAxisZ]};
-    return 'rotate3d(' + axis.alpha.join(',') + ',' + this.alpha + 'deg) ' +
-        'rotate3d(' + axis.beta.join(',') + ',' + this.beta + 'deg) ' +
-        'rotate3d(' + axis.gamma.join(',') + ',' + this.gamma + 'deg)';
+  toCSSRotationString() {
+    // const gammaAxisY = -Math.sin(degreesToRadians(this.beta));
+    // const gammaAxisZ = Math.cos(degreesToRadians(this.beta));
+    // const axis = {alpha: [0, 1, 0], beta: [-1, 0, 0], gamma: [0, gammaAxisY, gammaAxisZ]};
+    // return 'rotate3d(' + axis.alpha.join(',') + ',' + this.alpha + 'deg) ' +
+    //     'rotate3d(' + axis.beta.join(',') + ',' + this.beta + 'deg) ' +
+    //     'rotate3d(' + axis.gamma.join(',') + ',' + this.gamma + 'deg)';
+
+    // CSS Transforms coordinate space is left-handed, Device Orientation's is
+    // right-handed. Convert the latter into the former by inverting Z and Y
+    // axes: axis.alpha corresponds to Y and axis.gamma corresponds to Z (Device
+    // Orientation is Z-X'-Y''). Also invert the sign of X since in both
+    // coordinate spaces they point to the same direction, but with opposite
+    // positive rotations.
+    return `rotateY(${this.alpha}deg) rotateX(${-this.beta}deg) rotateZ(${this.gamma}deg)`;
   }
 }
 
