@@ -578,12 +578,19 @@ export class SensorsView extends UI.Widget.VBox {
       this._stageElement.classList.remove('is-animating');
     }
 
-    // The CSS transform should not depend on matrix3d, which does not interpolate well.
-    const matrix = new WebKitCSSMatrix();
-    this._boxMatrix = matrix.rotate(-deviceOrientation.beta, deviceOrientation.gamma, -deviceOrientation.alpha);
-    const eulerAngles =
-        new UI.Geometry.EulerAngles(deviceOrientation.alpha, deviceOrientation.beta, deviceOrientation.gamma);
-    this._orientationLayer.style.transform = eulerAngles.toCSSRotationString();
+    const matrix = new DOMMatrixReadOnly();
+    // CSS Transforms coordinate space is left-handed, Device Orientation's is
+    // right-handed. Convert the latter into the former by inverting Z and Y
+    // axes: axis.alpha corresponds to Y and axis.gamma corresponds to Z (Device
+    // Orientation is Z-X'-Y''). Also invert the sign of X since in both
+    // coordinate spaces they point to the same direction, but with opposite
+    // positive rotations.
+    this._boxMatrix = matrix.rotate(0, deviceOrientation.alpha, 0).rotate(-deviceOrientation.beta, 0, 0).rotate(0, 0, deviceOrientation.gamma);
+    this._orientationLayer.style.transform = this._boxMatrix.toString();
+    // console.error(this._orientationLayer.style.transform);
+    // const eulerAngles =
+    //     new UI.Geometry.EulerAngles(deviceOrientation.alpha, deviceOrientation.beta, deviceOrientation.gamma);
+    // this._orientationLayer.style.transform = eulerAngles.toCSSRotationString();
   }
 
   /**
