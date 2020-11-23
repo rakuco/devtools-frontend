@@ -586,11 +586,14 @@ export class SensorsView extends UI.Widget.VBox {
     // coordinate spaces they point to the same direction, but with opposite
     // positive rotations.
     this._boxMatrix = matrix.rotate(0, deviceOrientation.alpha, 0).rotate(-deviceOrientation.beta, 0, 0).rotate(0, 0, deviceOrientation.gamma);
-    this._orientationLayer.style.transform = this._boxMatrix.toString();
+    // this._orientationLayer.style.transform = this._boxMatrix.toString();
+
     // console.error(this._orientationLayer.style.transform);
     // const eulerAngles =
     //     new UI.Geometry.EulerAngles(deviceOrientation.alpha, deviceOrientation.beta, deviceOrientation.gamma);
-    // this._orientationLayer.style.transform = eulerAngles.toCSSRotationString();
+    const eulerAngles = UI.Geometry.EulerAngles.fromRotationMatrix2(this._boxMatrix);
+    this._orientationLayer.style.transform = eulerAngles.toCSSRotationString();
+    console.error(this._orientationLayer.style.transform);
   }
 
   /**
@@ -625,9 +628,16 @@ export class SensorsView extends UI.Widget.VBox {
                         .rotate(90, 0, 0)
                         .multiply(this._originalBoxMatrix);
 
-    const eulerAngles = UI.Geometry.EulerAngles.fromRotationMatrix(currentMatrix);
+    if (this._originalBoxMatrix) {
+      console.error(`angle=${angle}`);
+      currentMatrix = this._originalBoxMatrix.rotateAxisAngle(0, 0, -1, angle);
+      // currentMatrix = this._originalBoxMatrix.rotate(-90, 0, 0).rotateAxisAngle(axis.x, axis.y, axis.z, angle).rotate(90, 0, 0);
+    }
+
+    const eulerAngles = UI.Geometry.EulerAngles.fromRotationMatrix2(currentMatrix);
+    console.error(eulerAngles.alpha, eulerAngles.beta, eulerAngles.gamma);
     const newOrientation =
-        new SDK.EmulationModel.DeviceOrientation(-eulerAngles.alpha, -eulerAngles.beta, eulerAngles.gamma);
+        new SDK.EmulationModel.DeviceOrientation(eulerAngles.alpha, -eulerAngles.beta, eulerAngles.gamma);
     this._setDeviceOrientation(newOrientation, DeviceOrientationModificationSource.UserDrag);
     this._setSelectElementLabel(this._orientationSelectElement, NonPresetOptions.Custom);
     return false;
