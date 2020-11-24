@@ -522,15 +522,22 @@ export class SensorsView extends UI.Widget.VBox {
    * @param {!Element} parentElement
    * @param {!HTMLInputElement} input
    * @param {string} label
+   * @param {number} minimumValue
+   * @param {number} maximumValue
    * @return {function(string)}
    */
-  _createAxisInput(parentElement, input, label) {
+  _createAxisInput(parentElement, input, label, minimumValue, maximumValue) {
     const div = parentElement.createChild('div', 'orientation-axis-input-container');
     div.appendChild(input);
     div.appendChild(UI.UIUtils.createLabel(label, /* className */ '', input));
     input.type = 'number';
     return UI.UIUtils.bindInput(
-        input, this._applyDeviceOrientationUserInput.bind(this), SDK.EmulationModel.DeviceOrientation.validator, true);
+        input, this._applyDeviceOrientationUserInput.bind(this),
+        (value) => {
+          return SDK.EmulationModel.DeviceOrientation.validator(value, minimumValue, maximumValue);
+        },
+        // SDK.EmulationModel.DeviceOrientation.validator,
+        true);
   }
 
   /**
@@ -545,18 +552,19 @@ export class SensorsView extends UI.Widget.VBox {
     this._alphaElement = UI.UIUtils.createInput();
     this._alphaElement.setAttribute('step', 'any');
     this._alphaSetter =
-        this._createAxisInput(cellElement, this._alphaElement, Common.UIString.UIString('\u03B1 (alpha)'));
+        this._createAxisInput(cellElement, this._alphaElement, Common.UIString.UIString('\u03B1 (alpha)'), 0, 360);
     this._alphaSetter(String(deviceOrientation.alpha));
 
     this._betaElement = UI.UIUtils.createInput();
     this._betaElement.setAttribute('step', 'any');
-    this._betaSetter = this._createAxisInput(cellElement, this._betaElement, Common.UIString.UIString('\u03B2 (beta)'));
+    this._betaSetter =
+        this._createAxisInput(cellElement, this._betaElement, Common.UIString.UIString('\u03B2 (beta)'), -180, 180);
     this._betaSetter(String(deviceOrientation.beta));
 
     this._gammaElement = UI.UIUtils.createInput();
     this._gammaElement.setAttribute('step', 'any');
     this._gammaSetter =
-        this._createAxisInput(cellElement, this._gammaElement, Common.UIString.UIString('\u03B3 (gamma)'));
+        this._createAxisInput(cellElement, this._gammaElement, Common.UIString.UIString('\u03B3 (gamma)'), -90, 90);
     this._gammaSetter(String(deviceOrientation.gamma));
 
     const resetButton = UI.UIUtils.createTextButton(
@@ -585,13 +593,18 @@ export class SensorsView extends UI.Widget.VBox {
     // Orientation is Z-X'-Y''). Also invert the sign of X since in both
     // coordinate spaces they point to the same direction, but with opposite
     // positive rotations.
-    this._boxMatrix = matrix.rotate(0, deviceOrientation.alpha, 0).rotate(-deviceOrientation.beta, 0, 0).rotate(0, 0, deviceOrientation.gamma);
+    this._boxMatrix = matrix.rotate(0, 0, deviceOrientation.alpha)
+                          .rotate(deviceOrientation.beta, 0, 0)
+                          .rotate(0, deviceOrientation.gamma, 0);
+    // this._boxMatrix = matrix.rotate(0, deviceOrientation.alpha, 0).rotate(-deviceOrientation.beta, 0, 0).rotate(0, 0, deviceOrientation.gamma);
+    // this._boxMatrix = matrix.rotate(90, 0, 0).rotate(0, 0, -deviceOrientation.alpha).rotate(-deviceOrientation.beta, 0, 0).rotate(0, deviceOrientation.gamma, 0).rotate(-90, 0, 0);
     // this._orientationLayer.style.transform = this._boxMatrix.toString();
 
     // console.error(this._orientationLayer.style.transform);
     // const eulerAngles =
     //     new UI.Geometry.EulerAngles(deviceOrientation.alpha, deviceOrientation.beta, deviceOrientation.gamma);
     const eulerAngles = UI.Geometry.EulerAngles.fromRotationMatrix2(this._boxMatrix);
+    // const eulerAngles = UI.Geometry.EulerAngles.fromRotationMatrix3(this._boxMatrix);
     this._orientationLayer.style.transform = eulerAngles.toCSSRotationString();
     console.error(this._orientationLayer.style.transform);
   }
@@ -613,6 +626,8 @@ export class SensorsView extends UI.Widget.VBox {
     event.consume(true);
     let axis, angle;
     if (event.shiftKey) {
+      // different coordinate space (css vs device orientation)
+      // If we called rotateAxisAngle(x, y, z) below, we could use (0, -1, 0) in this vector.
       axis = new UI.Geometry.Vector(0, 0, -1);
       angle = (this._mouseDownVector.x - mouseMoveVector.x) * ShiftDragOrientationSpeed;
     } else {
@@ -622,22 +637,29 @@ export class SensorsView extends UI.Widget.VBox {
 
     // The mouse movement vectors occur in the screen space, which is offset by 90 degrees from
     // the actual device orientation.
-    let currentMatrix = new WebKitCSSMatrix();
-    currentMatrix = currentMatrix.rotate(-90, 0, 0)
-                        .rotateAxisAngle(axis.x, axis.y, axis.z, angle)
-                        .rotate(90, 0, 0)
-                        .multiply(this._originalBoxMatrix);
+    // let currentMatrix = new WebKitCSSMatrix();
+    // currentMatrix = currentMatrix.rotate(-90, 0, 0)
+    //                     .rotateAxisAngle(axis.x, axis.y, axis.z, angle)
+    //                     .rotate(90, 0, 0)
+    //                     .multiply(this._originalBoxMatrix);
+
+    const currentMatrix =
+        new DOMMatrixReadOnly().rotateAxisAngle(-axis.x, axis.z, axis.y, angle).multiply(this._originalBoxMatrix);
 
     if (this._originalBoxMatrix) {
-      console.error(`angle=${angle}`);
-      currentMatrix = this._originalBoxMatrix.rotateAxisAngle(0, 0, -1, angle);
+      // This works, but always rotates around the model's y axis. We want
+      // world's (camera's?) y axis.
+      // currentMatrix = this._originalBoxMatrix.rotateAxisAngle(0, -1, 0, angle);
+
+      // currentMatrix = new DOMMatrixReadOnly().rotateAxisAngle(axis.x, axis.y, axis.z, angle).multiply(this._originalBoxMatrix);
+
       // currentMatrix = this._originalBoxMatrix.rotate(-90, 0, 0).rotateAxisAngle(axis.x, axis.y, axis.z, angle).rotate(90, 0, 0);
     }
 
     const eulerAngles = UI.Geometry.EulerAngles.fromRotationMatrix2(currentMatrix);
-    console.error(eulerAngles.alpha, eulerAngles.beta, eulerAngles.gamma);
+    // console.error(eulerAngles.alpha, eulerAngles.beta, eulerAngles.gamma);
     const newOrientation =
-        new SDK.EmulationModel.DeviceOrientation(eulerAngles.alpha, -eulerAngles.beta, eulerAngles.gamma);
+        new SDK.EmulationModel.DeviceOrientation(eulerAngles.alpha, eulerAngles.beta, eulerAngles.gamma);
     this._setDeviceOrientation(newOrientation, DeviceOrientationModificationSource.UserDrag);
     this._setSelectElementLabel(this._orientationSelectElement, NonPresetOptions.Custom);
     return false;
@@ -725,9 +747,9 @@ export const PresetOrientations = [{
     {title: Common.UIString.UIString('Portrait'), orientation: '[0, 90, 0]'},
     {title: Common.UIString.UIString('Portrait upside down'), orientation: '[180, -90, 0]'},
     {title: Common.UIString.UIString('Landscape left'), orientation: '[90, 0, -90]'},
-    {title: Common.UIString.UIString('Landscape right'), orientation: '[-90, 0, 90]'},
+    {title: Common.UIString.UIString('Landscape right'), orientation: '[90, -180, -90]'},
     {title: Common.UIString.UIString('Display up'), orientation: '[0, 0, 0]'},
-    {title: Common.UIString.UIString('Display down'), orientation: '[0, 180, 0]'}
+    {title: Common.UIString.UIString('Display down'), orientation: '[180, -180, 0]'}
   ]
 }];
 

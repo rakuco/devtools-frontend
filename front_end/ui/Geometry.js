@@ -223,49 +223,64 @@ export class EulerAngles {
     rotationMatrix = rotationMatrix.inverse();
     let alpha, beta, gamma;
     const a = [
-      rotationMatrix.m11, rotationMatrix.m12, rotationMatrix.m13, rotationMatrix.m14,
-      rotationMatrix.m21, rotationMatrix.m22, rotationMatrix.m23, rotationMatrix.m24,
-      rotationMatrix.m31, rotationMatrix.m32, rotationMatrix.m33, rotationMatrix.m34,
-      rotationMatrix.m41, rotationMatrix.m42, rotationMatrix.m43, rotationMatrix.m44
+      rotationMatrix.m11, rotationMatrix.m12, rotationMatrix.m13, rotationMatrix.m14, rotationMatrix.m21,
+      rotationMatrix.m22, rotationMatrix.m23, rotationMatrix.m24, rotationMatrix.m31, rotationMatrix.m32,
+      rotationMatrix.m33, rotationMatrix.m34, rotationMatrix.m41, rotationMatrix.m42, rotationMatrix.m43,
+      rotationMatrix.m44
     ];
-    if (a[10] > 0) { // cos(beta) > 0
-      alpha = Math.atan2(-a[1], a[5]);
-      beta = Math.asin(a[9]); // beta (-pi/2, pi/2)
-      gamma = Math.atan2(-a[8], a[10]); // gamma (-pi/2, pi/2)
-    }
-    else if (a[10] < 0) {  // cos(beta) < 0
-      alpha = Math.atan2(a[1], -a[5]);
-      beta = -Math.asin(a[9]);
-      beta += (beta >= 0) ? -Math.PI : Math.PI; // beta [-pi,-pi/2) U (pi/2,pi)
-      gamma = Math.atan2(a[8], -a[10]); // gamma (-pi/2, pi/2)
-    }
-    else { // a[10] (m33) == 0
-      if (a[8] > 0) {  // cos(gamma) == 0, cos(beta) > 0
-        alpha = Math.atan2(-a[1], a[5]);
-        beta = Math.asin(a[9]); // beta [-pi/2, pi/2]
-        gamma = - (Math.PI / 2); // gamma = -pi/2
-      }
-      else if (a[8] < 0) { // cos(gamma) == 0, cos(beta) < 0
-        alpha = Math.atan2(a[1], -a[5]);
-        beta = -Math.asin(a[9]);
-        beta += (beta >= 0) ? - Math.PI : Math.PI; // beta [-pi,-pi/2) U (pi/2,pi)
-        gamma = - (Math.PI / 2); // gamma = -pi/2
-      }
-      else { // a[8] (m31) == 0, cos(beta) == 0
+    const kEpsilon = 10e-8;
+    if (Math.abs(a[10]) < kEpsilon) {   // a[10] (m33) == 0
+      if (Math.abs(a[8]) < kEpsilon) {  // a[8] (m31) == 0, cos(beta) == 0
         // Gimbal lock discontinuity
         alpha = Math.atan2(a[4], a[0]);
-        beta = (a[9] > 0) ? (Math.PI / 2) : - (Math.PI / 2); // beta = +-pi/2
-        gamma = 0; // gamma = 0
+        beta = (a[9] > 0) ? (Math.PI / 2) : -(Math.PI / 2);  // beta = +-pi/2
+        gamma = 0;                                           // gamma = 0
+      } else if (a[8] > 0) {                                 // cos(gamma) == 0, cos(beta) > 0
+        alpha = Math.atan2(-a[1], a[5]);
+        beta = Math.asin(a[9]);  // beta [-pi/2, pi/2]
+        gamma = -(Math.PI / 2);  // gamma = -pi/2
+      } else {                   // cos(gamma) == 0, cos(beta) < 0
+        alpha = Math.atan2(a[1], -a[5]);
+        beta = -Math.asin(a[9]);
+        beta += (beta >= 0) ? -Math.PI : Math.PI;  // beta [-pi,-pi/2) U (pi/2,pi)
+        gamma = -(Math.PI / 2);                    // gamma = -pi/2
       }
+    } else if (a[10] > 0) {  // cos(beta) > 0
+      alpha = Math.atan2(-a[1], a[5]);
+      beta = Math.asin(a[9]);            // beta (-pi/2, pi/2)
+      gamma = Math.atan2(-a[8], a[10]);  // gamma (-pi/2, pi/2)
+    } else {                             // cos(beta) < 0
+      alpha = Math.atan2(a[1], -a[5]);
+      beta = -Math.asin(a[9]);
+      beta += (beta >= 0) ? -Math.PI : Math.PI;  // beta [-pi,-pi/2) U (pi/2,pi)
+      gamma = Math.atan2(a[8], -a[10]);          // gamma (-pi/2, pi/2)
+      // console.error(`gamma=${gamma}`);
     }
 
     // alpha is in [-pi, pi], make sure it is in [0, 2*pi).
-    if (alpha < 0) {
-      alpha += 2 * Math.PI; // alpha [0, 2*pi)
+    if (alpha < -kEpsilon) {
+      alpha += 2 * Math.PI;  // alpha [0, 2*pi)
     }
 
+    /**
+     * @param {number} angle
+     * @return {number}
+     */
+    function round(angle) {
+      return Math.round(angle * 10000) / 10000;
+    }
+    // alpha = Math.round(radiansToDegrees(alpha)) % 360;
+    // beta = Math.round(radiansToDegrees(beta));
+    // gamma = Math.round(radiansToDegrees(gamma));
+    // console.error(`new gamma=${gamma}`);
+
+    alpha = round(radiansToDegrees(alpha));
+    beta = round(radiansToDegrees(beta));
+    gamma = round(radiansToDegrees(gamma));
+
     // return new EulerAngles(-radiansToDegrees(alpha), radiansToDegrees(beta), -radiansToDegrees(gamma));
-    return new EulerAngles(radiansToDegrees(alpha), radiansToDegrees(beta), radiansToDegrees(gamma));
+    // return new EulerAngles(radiansToDegrees(alpha), radiansToDegrees(beta), radiansToDegrees(gamma));
+    return new EulerAngles(alpha, beta, gamma);
   }
 
   /**
@@ -276,12 +291,12 @@ export class EulerAngles {
     rotationMatrix = rotationMatrix.inverse();
     let x, y, z;
 
-    x = Math.asin(- Platform.NumberUtilities.clamp(rotationMatrix.m23, - 1, 1));
+    x = Math.asin(-Platform.NumberUtilities.clamp(rotationMatrix.m23, -1, 1));
     if (Math.abs(rotationMatrix.m23) < 0.9999999) {
       y = Math.atan2(rotationMatrix.m13, rotationMatrix.m33);
       z = Math.atan2(rotationMatrix.m21, rotationMatrix.m22);
     } else {
-      y = Math.atan2(- rotationMatrix.m31, rotationMatrix.m11);
+      y = Math.atan2(-rotationMatrix.m31, rotationMatrix.m11);
       z = 0;
     }
     // x = Math.asin(- Platform.NumberUtilities.clamp(rotationMatrix.m32, - 1, 1));
@@ -295,23 +310,23 @@ export class EulerAngles {
 
     console.error(y, x, z);
 
-    let alpha = y;
-    if (alpha < 0)
-      alpha += 2 * Math.PI;
+    let alpha = z;
+    // if (alpha < 0)
+    //   alpha += 2 * Math.PI;
 
     let beta = x;
-    if (beta >= Math.PI)
-      beta -= 2 * Math.PI;
-    else if (beta < -Math.PI)
-      beta += 2 * Math.PI;
+    // if (beta >= Math.PI)
+    //   beta -= 2 * Math.PI;
+    // else if (beta < -Math.PI)
+    //   beta += 2 * Math.PI;
 
-    let gamma = z;
-    if (gamma >= Math.PI / 2)
-      gamma -= Math.PI;
-    else if (gamma < -Math.PI / 2)
-      gamma += Math.PI;
+    let gamma = y;
+    // if (gamma >= Math.PI / 2)
+    //   gamma -= Math.PI;
+    // else if (gamma < -Math.PI / 2)
+    //   gamma += Math.PI;
 
-    return new EulerAngles(radiansToDegrees(alpha), -radiansToDegrees(beta), radiansToDegrees(gamma));
+    return new EulerAngles(radiansToDegrees(alpha), radiansToDegrees(beta), radiansToDegrees(gamma));
   }
 
   /**
@@ -331,7 +346,8 @@ export class EulerAngles {
     // Orientation is Z-X'-Y''). Also invert the sign of X since in both
     // coordinate spaces they point to the same direction, but with opposite
     // positive rotations.
-    return `rotateZ(${this.alpha}deg) rotateX(${this.beta}deg) rotateY(${this.gamma}deg)`;
+    // return `rotateZ(${this.alpha}deg) rotateX(${this.beta}deg) rotateY(${this.gamma}deg)`;
+    return `rotateY(${this.alpha}deg) rotateX(${- this.beta}deg) rotateZ(${this.gamma}deg)`;
   }
 }
 

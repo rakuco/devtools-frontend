@@ -148,8 +148,7 @@ describe('EulerAngles', () => {
     const eulerAngles = new UI.Geometry.EulerAngles(1, 2, 3);
     const result = eulerAngles.toCSSRotationString();
     assert.strictEqual(
-        result, 'rotateY(1deg) rotateX(-2deg) rotateZ(3deg)',
-        'function did not return the correct rotate 3D string');
+        result, 'rotateY(1deg) rotateX(-2deg) rotateZ(3deg)', 'function did not return the correct rotate 3D string');
   });
 
   it('is able to return an euler angles from rotation matrix', () => {

@@ -513,9 +513,9 @@ export class DeviceOrientation {
       return null;
     }
 
-    const {valid: isAlphaValid} = DeviceOrientation.validator(alphaString);
-    const {valid: isBetaValid} = DeviceOrientation.validator(betaString);
-    const {valid: isGammaValid} = DeviceOrientation.validator(gammaString);
+    const {valid: isAlphaValid} = DeviceOrientation.validator(alphaString, 0, 360);
+    const {valid: isBetaValid} = DeviceOrientation.validator(betaString, -180, 180);
+    const {valid: isGammaValid} = DeviceOrientation.validator(gammaString, -90, 90);
 
     if (!isAlphaValid && !isBetaValid && !isGammaValid) {
       return null;
@@ -530,10 +530,15 @@ export class DeviceOrientation {
 
   /**
    * @param {string} value
+   * @param {number} minimumValue
+   * @param {number} maximumValue
    * @return {{valid: boolean, errorMessage: (string|undefined)}}
    */
-  static validator(value) {
-    const valid = /^([+-]?[\d]+(\.\d+)?|[+-]?\.\d+)$/.test(value);
+  static validator(value, minimumValue, maximumValue) {
+    const numValue = parseFloat(value);
+    const valid =
+        /^([+-]?[\d]+(\.\d+)?|[+-]?\.\d+)$/.test(value) && minimumValue <= numValue && numValue < maximumValue;
+    // console.error(`value: ${value} valid: ${valid}`);
     return {valid, errorMessage: undefined};
   }
 
